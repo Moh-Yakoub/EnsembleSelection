@@ -7,6 +7,9 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve
 from sklearn.metrics import jaccard_similarity_score
 from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import BernoulliNB
 import random
 import logging
 class EnsembleSelection:
@@ -25,6 +28,13 @@ class EnsembleSelection:
 	'roc_auc':roc_auc_score,
 	'roc_curve':roc_curve,
 	'jaccard_similarity':jaccard_similarity_score
+	}
+
+	'''
+	Those are a set of simple classifiers that need zero or trivial params.
+	'''
+	simple_classifiers = {
+	'GaussianNB' : GaussianNB()
 	}
 
 	def __init__(self):
@@ -61,11 +71,40 @@ class EnsembleSelection:
 
 		self.logger.info('Generating a set of %d logistic regression classifiers was created successfully!',n)
 		return models
+
+	def generate_multionomial_nb_classifiers(self,n=121):
+		self.logger.info('Generating a set of %d Multinomial naive bayes classifiers',n)
+
+		models = []
+		for i in range(0,n):
+			alpha_var = random.random()
+			fit_prior_var =  True if random.random() > 0.5 else False
+			models.append(MultinomialNB(alpha=alpha_var,fit_prior=fit_prior_var))
+
+		self.logger.info('Generating a set of %d Multinomial naive bayes classifiers was created successfully!',n)
+		return models
+
+	def generate_bernoulli_nb_classifiers(self,n=121):
+		self.logger.info('Generating a set of %d Bernoulli naive bayes classifiers',n)
+
+		models = []
+		for i in range(0,n):
+			alpha_var = random.random()
+			fit_prior_var =  True if random.random() > 0.5 else False
+			binarize_var =  random.random()
+			models.append(BernoulliNB(alpha=alpha_var,fit_prior=fit_prior_var,binarize = binarize_var))
+
+		self.logger.info('Generating a set of %d Bernoulli naive bayes classifiers was created successfully!',n)
+		return models
+
+
 		
 
 if __name__ == "__main__":
 	selection = EnsembleSelection()
-	print selection.generate_logistic_regression_classifiers()
+	selection.generate_logistic_regression_classifiers()
+	selection.generate_bernoulli_nb_classifiers()
+	selection.generate_multionomial_nb_classifiers()
 
 
 
