@@ -1,3 +1,4 @@
+from EnsembleUtils import auc_error
 from sklearn.metrics import auc
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import f1_score
@@ -14,6 +15,8 @@ from sklearn import cross_validation
 from operator import add
 import random
 import logging
+from collections import Counter
+
 class EnsembleSelection:
 	'''
 	This class implements the EnsembleSelection mechanism
@@ -22,7 +25,7 @@ class EnsembleSelection:
 	All of the metrics used for classification model selection
 	'''
 	classification_error_metrics = {
-	'auc':auc,
+	'auc':auc_error,
 	'average_precision':average_precision_score,
 	'f1':f1_score,
 	'fbeta':fbeta_score,
@@ -66,10 +69,10 @@ class EnsembleSelection:
 		models = []
 		for i in range(0,n):
 			penalty_var = 'l1' if random.random() > 0.5 else 'l2'
-			tol_var = random.random()
-			C_var =random.random()
+			#tol_var = random.random()
+			C_var =  0.1 if random.random() < 0.5 else 1.0
 			fit_intercept_var = True if random.random() > 0.5 else False
-			models.append(LogisticRegression(penalty=penalty_var,C=C_var,fit_intercept = fit_intercept_var,tol = tol_var))
+			models.append(LogisticRegression(penalty=penalty_var,C=C_var,fit_intercept = fit_intercept_var))
 
 		self.logger.info('Generating a set of %d logistic regression classifiers was created successfully!',n)
 		return models
@@ -109,20 +112,20 @@ class EnsembleSelection:
 	Y: The target variable
 	error_metric: the error metric used: roc-auc by default
 	'''
-	def form_ensemble(models,n,replacement=False,error_metric_name='roc_auc'):
+	def form_ensemble(self,X,Y,models,n,replacement=False,error_metric_name='roc_auc'):
 		if replacement==False and len(models) <n :
 			self.logger.error("the ensemble size must smaller than the models size when not using replacement")
-		elif not (error_metric_name) in classification_error_metrics:
+		elif not (error_metric_name) in self.classification_error_metrics:
 			self.logger.error("unrecognized error metric:"+error_metric_name)
 		else:
 			self.logger.info("Forming Ensemble")
-			error_metric = classification_error_metrics[error_metric_name]
+			error_metric = self.classification_error_metrics[error_metric_name]
 			X_train, X_test, y_train, y_test = cross_validation.train_test_split(X,Y, test_size=0.4, random_state=0)
 			ensemble = []
 			## for the model i in ensemble , ensemble_predictions[i] stores the predictions of the model fit
 			model_predictions = []
 			##stores the last aggregated sum of all of the previous model in the ensemble
-			last_sum = []
+			predictions_list = []
 			##adding a trivial large number
 			min_error = pow(2,10)
 			best_index = 0
@@ -136,7 +139,7 @@ class EnsembleSelection:
 				model_error = error_metric(predicted,y_test)
 				if(model_error < min_error):
 					min_error = model_error
-					last_sum = predicted
+					predictions_list .append(predicted.tolist())
 					best_index = i
 			self.logger.info("Training and prediction finished!")
 			self.logger.info("Ensemble formation using models")
@@ -150,23 +153,31 @@ class EnsembleSelection:
 			##using vote aggregation
 			for i in range(0,n-1):
 				for j in range(0,len(model_predictions)):
-					aggregated_sum = map(add,model_predictions[i],last_sum)
-					aggregated_predictions = [round(x/((i+2)*1.0)) for x in aggregated_sum]
+					aggregated_predictions = self.vote(predictions_list+[model_predictions[j].tolist()])
 					model_error = error_metric(y_test,aggregated_predictions)
 					if(model_error < min_error):
 						min_error = model_error
 						best_index = j
 
 				self.logger.info("Adding the model no. %d to ensemble",i+1)
-				last_sum = map(add,last_sum,model_predictions[best_index])
+				predictions_list.append(model_predictions[best_index])
+				min_error = pow(2,10)
 				ensemble.append(models[best_index])
 				if not replacement:
 					model_predictions.pop(best_index)
 					models.pop(best_index)
+			return ensemble
+
+	def vote(self,l):
+		n = len(l[0])
+		result = []
+		for i in range(0,n):
+			ithlist = [x[i] for x in l]
+			result.append(Counter(ithlist).most_common(1)[0][0])
+
+		return result
+
+      
+        
 
 
-if __name__ == "__main__":
-	selection = EnsembleSelection()
-	selection.generate_logistic_regression_classifiers()
-	selection.generate_bernoulli_nb_classifiers()
-	selection.generate_multionomial_nb_classifiers()
