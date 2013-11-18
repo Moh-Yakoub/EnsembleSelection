@@ -16,7 +16,8 @@ from ensemble.EnsembleClassifier import EnsembleClassifier
 from sklearn.metrics import accuracy_score
 from sklearn import cross_validation
 from sklearn.metrics import auc
-
+from sklearn.linear_model import SGDClassifier
+from sklearn.naive_bayes import GaussianNB
 import json
 
 if __name__ == "__main__":
@@ -48,9 +49,8 @@ if __name__ == "__main__":
 	X_TEST = vectorizer.transform(X_TEST)
 	selection = EnsembleSelection()
 	clf = EnsembleClassifier()
-	models = []
-	models = (selection.generate_logistic_regression_classifiers()+selection.generate_bernoulli_nb_classifiers(300)+selection.generate_multionomial_nb_classifiers(300))
-	ensemble =  selection.form_ensemble(X_TRAIN,Y_TRAIN,models,30,error_metric_name='auc',replacement=False)
+	models = [SGDClassifier(loss="hinge", penalty="l1")]+[LinearSVC()]+selection.generate_logistic_regression_classifiers(2)+selection.generate_multionomial_nb_classifiers(2)+selection.generate_bernoulli_nb_classifiers(2)
+	ensemble =  selection.form_ensemble(X_TRAIN,Y_TRAIN,models,5,error_metric_name='auc')
 	y_predicted = clf.predict(X_TEST,ensemble)
 	print auc_error(y_predicted,Y_TEST)
 

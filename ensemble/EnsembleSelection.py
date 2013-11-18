@@ -1,5 +1,6 @@
 from EnsembleUtils import auc_error
 from sklearn.metrics import auc
+from sklearn.svm import LinearSVC
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import fbeta_score
@@ -15,6 +16,7 @@ from sklearn import cross_validation
 from operator import add
 import random
 import logging
+import itertools
 from collections import Counter
 
 class EnsembleSelection:
@@ -63,44 +65,47 @@ class EnsembleSelection:
 	right now we stick to the old trick of randomizing everything
 	'''
 
-	def generate_logistic_regression_classifiers(self,n=121):
-		self.logger.info('Generating a set of %d logistic regression classifiers',n)
+	def generate_logistic_regression_classifiers(self,n=12):
+		self.logger.info('Generating a set of  logistic regression classifiers, n = %d',n)
 
 		models = []
-		for i in range(0,n):
-			penalty_var = 'l1' if random.random() > 0.5 else 'l2'
-			#tol_var = random.random()
-			C_var =  0.1 if random.random() < 0.5 else 1.0
-			fit_intercept_var = True if random.random() > 0.5 else False
-			models.append(LogisticRegression(penalty=penalty_var,C=C_var,fit_intercept = fit_intercept_var))
+		penalty_vars = ['l1','l2']
+		C_vars = [0.1,0.2,1.0]
+		fit_vars = [True,False]
+		parameters_list = itertools.product(penalty_vars,C_vars,fit_vars)
 
-		self.logger.info('Generating a set of %d logistic regression classifiers was created successfully!',n)
-		return models
+		for (penalty,C,fit) in parameters_list:
+			models.append(LogisticRegression(penalty=penalty,C=C,fit_intercept = fit))
 
-	def generate_multionomial_nb_classifiers(self,n=121):
-		self.logger.info('Generating a set of %d Multinomial naive bayes classifiers',n)
+		self.logger.info('Generating a set of  logistic regression classifiers was created successfully!',n)
+		return models[0:n]
+
+	def generate_multionomial_nb_classifiers(self,n=2):
+		self.logger.info('Generating a set of Multinomial naive bayes classifiers , n = %d',n)
+		models = []
+		alpha_vars = [0.01,0.1]
+		fit_prior_vars = [True,False]
+		parameters_list = itertools.product(alpha_vars,fit_prior_vars)
+		for (alpha,fit) in parameters_list:
+			models.append(MultinomialNB(alpha=alpha,fit_prior=fit))
+
+		self.logger.info('Generating a set of  Multinomial naive bayes classifiers was created successfully!')
+		return models[0:n]
+
+	def generate_bernoulli_nb_classifiers(self,n=8):
+		self.logger.info('Generating a set of  Bernoulli naive bayes classifiers , n = %d',n)
 
 		models = []
-		for i in range(0,n):
-			alpha_var = random.random()
-			fit_prior_var =  True if random.random() > 0.5 else False
-			models.append(MultinomialNB(alpha=alpha_var,fit_prior=fit_prior_var))
+		alpha_vars = [0.01,0.1]
+		fit_prior_vars = [True,False]
+		binarize_vars = [True,False]
+		parameters_list = itertools.product(alpha_vars,fit_prior_vars,binarize_vars)
 
-		self.logger.info('Generating a set of %d Multinomial naive bayes classifiers was created successfully!',n)
-		return models
+		for (alpha,fit,binarize) in parameters_list:
+			models.append(BernoulliNB(alpha=alpha,fit_prior=fit,binarize = binarize))
 
-	def generate_bernoulli_nb_classifiers(self,n=121):
-		self.logger.info('Generating a set of %d Bernoulli naive bayes classifiers',n)
-
-		models = []
-		for i in range(0,n):
-			alpha_var = random.random()
-			fit_prior_var =  True if random.random() > 0.5 else False
-			binarize_var =  random.random()
-			models.append(BernoulliNB(alpha=alpha_var,fit_prior=fit_prior_var,binarize = binarize_var))
-
-		self.logger.info('Generating a set of %d Bernoulli naive bayes classifiers was created successfully!',n)
-		return models
+		self.logger.info('Generating a set of  Bernoulli naive bayes classifiers was created successfully!',n)
+		return models[0:n]
 
 	'''
 	The implementation of the ensemble selection,
@@ -176,8 +181,3 @@ class EnsembleSelection:
 			result.append(Counter(ithlist).most_common(1)[0][0])
 
 		return result
-
-      
-        
-
-
